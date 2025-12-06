@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout &amp; Pay</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="neu-icon">
+                    <div class="icon-inner">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="5" width="20" height="14" rx="2" ry="2"/>
+                            <path d="M2 10h20M7 15h3"/>
+                        </svg>
+                    </div>
+                </div>
+                <h2>Checkout</h2>
+                <p>Review your total and pay securely</p>
+            </div>
+
+            <div id="summary" class="success-details" style="margin-bottom:20px;">
+                <div class="success-row">
+                    <span class="label">Items</span>
+                    <span class="value" id="summaryItems">—</span>
+                </div>
+                <div class="success-row">
+                    <span class="label">Total</span>
+                    <span class="value" id="summaryTotal">$0.00</span>
+                </div>
+            </div>
+
+            <form id="payForm">
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="text" id="holderName" name="holderName" required placeholder=" ">
+                        <label for="holderName">Name on Card</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="holderError"></span>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="text" id="cardNumber" name="cardNumber" inputmode="numeric" required placeholder=" ">
+                        <label for="cardNumber">Card Number</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="5" width="20" height="14" rx="2" ry="2"/>
+                                <path d="M2 10h20"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="cardError"></span>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="number" id="expMonth" name="expMonth" min="1" max="12" required placeholder=" ">
+                        <label for="expMonth">Expiry Month (MM)</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16v16H4zM8 2v4M16 2v4M4 10h16"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="expMonthError"></span>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="number" id="expYear" name="expYear" min="2024" required placeholder=" ">
+                        <label for="expYear">Expiry Year (YYYY)</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16v16H4zM8 2v4M16 2v4M4 10h16"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="expYearError"></span>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="password" id="cvv" name="cvv" inputmode="numeric" required placeholder=" ">
+                        <label for="cvv">CVV</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="cvvError"></span>
+                </div>
+
+                <button type="submit" class="neu-button signup-btn">
+                    <span class="btn-text">Pay Now</span>
+                    <div class="btn-loader">
+                        <div class="neu-spinner"></div>
+                    </div>
+                </button>
+            </form>
+
+            <div class="success-message" id="paySuccess">
+                <div class="success-icon neu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </div>
+                <h3>Payment Successful</h3>
+                <p class="success-subtitle">Thank you! Your order has been placed.</p>
+                <button type="button" id="redirectToShop" class="neu-button signup-btn" style="margin-top: 20px;">
+                    <span class="btn-text">Continue Shopping</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem("token");
+        if (!token) {
+            window.location.href = "/sign-in";
+        }
+
+        const summaryItems = document.getElementById("summaryItems");
+        const summaryTotal = document.getElementById("summaryTotal");
+        const payForm = document.getElementById("payForm");
+        const holderError = document.getElementById("holderError");
+        const cardError = document.getElementById("cardError");
+        const expMonthError = document.getElementById("expMonthError");
+        const expYearError = document.getElementById("expYearError");
+        const cvvError = document.getElementById("cvvError");
+        const paySuccess = document.getElementById("paySuccess");
+        const submitButton = payForm.querySelector(".neu-button");
+        const redirectToShopBtn = document.getElementById("redirectToShop");
+
+        async function loadSummary() {
+            try {
+                const res = await fetch("/cart", {
+                    headers: { Authorization: "Bearer " + token },
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    summaryItems.textContent = "—";
+                    summaryTotal.textContent = "$0.00";
+                    return;
+                }
+                const cart = data.cart;
+                const total = data.total || 0;
+                const count = cart && Array.isArray(cart.Items) ? cart.Items.length : 0;
+                summaryItems.textContent = count + " item" + (count === 1 ? "" : "s");
+                summaryTotal.textContent = "$" + total.toFixed(2);
+            } catch (e) {
+                summaryItems.textContent = "—";
+                summaryTotal.textContent = "$0.00";
+            }
+        }
+
+        loadSummary();
+
+        payForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            holderError.textContent = "";
+            cardError.textContent = "";
+            expMonthError.textContent = "";
+            expYearError.textContent = "";
+            cvvError.textContent = "";
+            holderError.classList.remove("show");
+            cardError.classList.remove("show");
+            expMonthError.classList.remove("show");
+            expYearError.classList.remove("show");
+            cvvError.classList.remove("show");
+            paySuccess.classList.remove("show");
+
+            submitButton.classList.add("loading");
+
+            const data = {
+                holder_name: payForm.holderName.value.trim(),
+                card_number: payForm.cardNumber.value.replace(/\s+/g, ""),
+                exp_month: Number(payForm.expMonth.value),
+                exp_year: Number(payForm.expYear.value),
+                cvv: payForm.cvv.value.trim(),
+            };
+
+            try {
+                const res = await fetch("/pay", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: "Bearer " + token,
+                    },
+                    body: JSON.stringify(data),
+                });
+                const result = await res.json();
+
+                if (res.ok) {
+                    paySuccess.classList.add("show");
+                    payForm.reset();
+                    await loadSummary();
+                } else {
+                    const msg = (result.error || "").toLowerCase();
+                    if (msg.includes("name") || msg.includes("holder")) {
+                        holderError.textContent = result.error;
+                        holderError.classList.add("show");
+                    } else if (msg.includes("card") || msg.includes("number")) {
+                        cardError.textContent = result.error;
+                        cardError.classList.add("show");
+                    } else if (msg.includes("month")) {
+                        expMonthError.textContent = result.error;
+                        expMonthError.classList.add("show");
+                    } else if (msg.includes("year") || msg.includes("expiry") || msg.includes("expired")) {
+                        expYearError.textContent = result.error;
+                        expYearError.classList.add("show");
+                    } else if (msg.includes("cvv")) {
+                        cvvError.textContent = result.error;
+                        cvvError.classList.add("show");
+                    } else {
+                        cardError.textContent = result.error || "Payment failed.";
+                        cardError.classList.add("show");
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                cardError.textContent = "Something went wrong. Try again.";
+                cardError.classList.add("show");
+            } finally {
+                submitButton.classList.remove("loading");
+            }
+        });
+
+        // Handle redirect button click
+        redirectToShopBtn.addEventListener("click", () => {
+            window.location.href = "/shop";
+        });
+    </script>
+</body>
+</html>
+
+

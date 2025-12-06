@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Product</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="neu-icon">
+                    <div class="icon-inner">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                    </div>
+                </div>
+                <h2>Add Product</h2>
+                <p>Create a new product</p>
+            </div>
+
+            <!-- Token Input Form -->
+            <form id="tokenForm">
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="text" id="adminToken" name="token" required placeholder=" ">
+                        <label for="adminToken">Admin JWT Token</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="5" width="18" height="14" rx="2" ry="2" />
+                                <path d="M7 9h10M7 13h6" />
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="tokenError"></span>
+                </div>
+
+                <button type="submit" class="neu-button signup-btn">
+                    <span class="btn-text">Verify Token</span>
+                    <div class="btn-loader">
+                        <div class="neu-spinner"></div>
+                    </div>
+                </button>
+            </form>
+
+            <!-- Add Product Form (shown after token verification) -->
+            <form id="addProductForm" style="display: none;">
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="text" id="title" name="title" required placeholder=" ">
+                        <label for="title">Product Title</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 6h16M4 12h16M4 18h10" />
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="titleError"></span>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="number" step="0.01" min="0" id="price" name="price" required placeholder=" ">
+                        <label for="price">Price (USD)</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 1v22M8 5h4a3 3 0 0 1 0 6H10a3 3 0 0 0 0 6h6" />
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="priceError"></span>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="number" min="0" step="1" id="stock" name="stock" required placeholder=" ">
+                        <label for="stock">Stock Quantity</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="4" rx="1" />
+                                <rect x="3" y="10" width="18" height="4" rx="1" />
+                                <rect x="3" y="16" width="18" height="4" rx="1" />
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="stockError"></span>
+                </div>
+
+                <button type="submit" class="neu-button signup-btn">
+                    <span class="btn-text">Add Product</span>
+                    <div class="btn-loader">
+                        <div class="neu-spinner"></div>
+                    </div>
+                </button>
+            </form>
+
+            <!-- Success Message -->
+            <div class="success-message" id="successMessage" style="display: none;">
+                <div class="success-icon neu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </div>
+                <h3>Product Added!</h3>
+                <p class="success-subtitle">Redirecting to products page...</p>
+            </div>
+
+            <!-- Access Denied Message -->
+            <div class="success-message" id="forbiddenMessage" style="display: none;">
+                <div class="success-icon neu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="7" x2="12" y2="13" />
+                        <circle cx="12" cy="17" r="1" />
+                    </svg>
+                </div>
+                <h3>Access Denied</h3>
+                <p class="success-subtitle">Only admin users can add products.</p>
+                <p style="color: #9499b7; font-size: 14px; margin-top: 12px;">
+                    Redirecting to public products page...
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentToken = null;
+
+        const tokenForm = document.getElementById("tokenForm");
+        const tokenInput = document.getElementById("adminToken");
+        const tokenError = document.getElementById("tokenError");
+        const addProductForm = document.getElementById("addProductForm");
+        const titleError = document.getElementById("titleError");
+        const priceError = document.getElementById("priceError");
+        const stockError = document.getElementById("stockError");
+        const successMessage = document.getElementById("successMessage");
+        const forbiddenMessage = document.getElementById("forbiddenMessage");
+
+        tokenForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            tokenError.textContent = "";
+            tokenError.classList.remove("show");
+            forbiddenMessage.style.display = "none";
+
+            const btn = tokenForm.querySelector(".neu-button");
+            btn.classList.add("loading");
+
+            const token = tokenInput.value.trim();
+            if (!token) {
+                tokenError.textContent = "Token is required.";
+                tokenError.classList.add("show");
+                btn.classList.remove("loading");
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/admin/verify", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ token: token })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.is_admin) {
+                    currentToken = token;
+                    tokenForm.style.display = "none";
+                    addProductForm.style.display = "block";
+                } else {
+                    forbiddenMessage.style.display = "block";
+                    setTimeout(() => {
+                        window.location.href = "/shop";
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error(err);
+                tokenError.textContent = "Network error. Try again.";
+                tokenError.classList.add("show");
+            } finally {
+                btn.classList.remove("loading");
+            }
+        });
+
+        addProductForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            titleError.textContent = "";
+            priceError.textContent = "";
+            stockError.textContent = "";
+            successMessage.style.display = "none";
+
+            const payload = {
+                title: addProductForm.title.value.trim(),
+                price: parseFloat(addProductForm.price.value),
+                stock: parseInt(addProductForm.stock.value, 10)
+            };
+
+            const submitButton = addProductForm.querySelector(".neu-button");
+            submitButton.classList.add("loading");
+
+            try {
+                const res = await fetch("/api/admin/products", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + currentToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    const msg = (data.error || "").toLowerCase();
+                    if (msg.includes("title")) {
+                        titleError.textContent = data.error;
+                    } else if (msg.includes("price")) {
+                        priceError.textContent = data.error;
+                    } else if (msg.includes("stock")) {
+                        stockError.textContent = data.error;
+                    } else {
+                        titleError.textContent = data.error || "Something went wrong.";
+                    }
+                    return;
+                }
+
+                successMessage.style.display = "block";
+                addProductForm.reset();
+                setTimeout(() => {
+                    window.location.href = "/products";
+                }, 800);
+            } catch (err) {
+                console.error(err);
+                titleError.textContent = "Something went wrong. Try again.";
+            } finally {
+                submitButton.classList.remove("loading");
+            }
+        });
+    </script>
+</body>
+</html>

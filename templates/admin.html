@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin – E‑Commerce</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="nav-glass">
+      <div class="nav-left">E‑Commerce Admin</div>
+      <nav class="nav-links">
+        <a href="/shop">Products</a>
+        <a href="/cart-page">Cart</a>
+        <a href="/admin-page" class="active">Admin</a>
+        <a href="/login" id="login-link">Login</a>
+      </nav>
+    </header>
+
+    <main class="content grid-2">
+      <section class="card-glass">
+        <h2>Add Product</h2>
+        <form id="add-product-form" class="form-vertical">
+          <label>
+            <span>Title</span>
+            <input type="text" name="title" required />
+          </label>
+          <label>
+            <span>Price (USD)</span>
+            <input type="number" min="0" step="0.01" name="price" required />
+          </label>
+          <label>
+            <span>Stock</span>
+            <input type="number" min="0" step="1" name="stock" required />
+          </label>
+          <button type="submit" class="btn-primary full-width">Add Product</button>
+        </form>
+        <p id="add-product-message" class="message"></p>
+      </section>
+
+      <section class="card-glass">
+        <h2>Update Product</h2>
+        <form id="update-product-form" class="form-vertical">
+          <label>
+            <span>Product ID</span>
+            <input type="number" min="1" name="id" required />
+          </label>
+          <label>
+            <span>New Title</span>
+            <input type="text" name="title" />
+          </label>
+          <label>
+            <span>New Price (USD)</span>
+            <input type="number" min="0" step="0.01" name="price" />
+          </label>
+          <label>
+            <span>New Stock</span>
+            <input type="number" min="0" step="1" name="stock" />
+          </label>
+          <button type="submit" class="btn-secondary full-width">Update Product</button>
+        </form>
+        <p id="update-product-message" class="message"></p>
+
+        <hr class="divider" />
+
+        <h2>Delete Product</h2>
+        <form id="delete-product-form" class="form-inline">
+          <input type="number" min="1" name="id" placeholder="Product ID" required />
+          <button type="submit" class="btn-danger">Delete</button>
+        </form>
+        <p id="delete-product-message" class="message"></p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const loginLink = document.getElementById('login-link');
+    if (token) {
+      loginLink.textContent = 'Logout';
+      loginLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      });
+    } else {
+      window.location.href = '/login';
+    }
+
+    function authHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + localStorage.getItem('token'),
+      };
+    }
+
+    // Add product
+    const addForm = document.getElementById('add-product-form');
+    const addMsg = document.getElementById('add-product-message');
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      addMsg.textContent = '';
+      addMsg.classList.remove('error', 'success');
+
+      const formData = new FormData(addForm);
+      const payload = {
+        Title: formData.get('title'),
+        Price: Number(formData.get('price')),
+        Stock: Number(formData.get('stock')),
+      };
+
+      try {
+        const res = await fetch('/admin/products', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          addMsg.textContent = data.error || 'Failed to add product';
+          addMsg.classList.add('error');
+          return;
+        }
+        addMsg.textContent = 'Product added (ID: ' + (data.ID || data.id) + ').';
+        addMsg.classList.add('success');
+        addForm.reset();
+      } catch (err) {
+        addMsg.textContent = 'Network error';
+        addMsg.classList.add('error');
+      }
+    });
+
+    // Update product
+    const updateForm = document.getElementById('update-product-form');
+    const updateMsg = document.getElementById('update-product-message');
+    updateForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      updateMsg.textContent = '';
+      updateMsg.classList.remove('error', 'success');
+
+      const formData = new FormData(updateForm);
+      const id = formData.get('id');
+      const payload = {};
+      if (formData.get('title')) payload.Title = formData.get('title');
+      if (formData.get('price')) payload.Price = Number(formData.get('price'));
+      if (formData.get('stock')) payload.Stock = Number(formData.get('stock'));
+
+      try {
+        const res = await fetch('/admin/products/' + id, {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          updateMsg.textContent = data.error || 'Failed to update product';
+          updateMsg.classList.add('error');
+          return;
+        }
+        updateMsg.textContent = 'Product updated.';
+        updateMsg.classList.add('success');
+      } catch (err) {
+        updateMsg.textContent = 'Network error';
+        updateMsg.classList.add('error');
+      }
+    });
+
+    // Delete product
+    const deleteForm = document.getElementById('delete-product-form');
+    const deleteMsg = document.getElementById('delete-product-message');
+    deleteForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      deleteMsg.textContent = '';
+      deleteMsg.classList.remove('error', 'success');
+
+      const formData = new FormData(deleteForm);
+      const id = formData.get('id');
+
+      try {
+        const res = await fetch('/admin/products/' + id, {
+          method: 'DELETE',
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          deleteMsg.textContent = data.error || 'Failed to delete product';
+          deleteMsg.classList.add('error');
+          return;
+        }
+        deleteMsg.textContent = 'Product deleted.';
+        deleteMsg.classList.add('success');
+        deleteForm.reset();
+      } catch (err) {
+        deleteMsg.textContent = 'Network error';
+        deleteMsg.classList.add('error');
+      }
+    });
+  </script>
+</body>
+</html>
+
+

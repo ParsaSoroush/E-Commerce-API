@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Products</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="neu-icon">
+                    <div class="icon-inner">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="7" width="18" height="13" rx="2" ry="2" />
+                            <path d="M8 7V5a4 4 0 0 1 8 0v2" />
+                        </svg>
+                    </div>
+                </div>
+                <h2>Admin Products</h2>
+                <p>Enter your admin JWT token to manage products</p>
+            </div>
+
+            <!-- Token Input Form (shown first) -->
+            <form id="tokenForm" style="display: block;">
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="text" id="adminToken" name="token" required placeholder=" ">
+                        <label for="adminToken">Admin JWT Token</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="5" width="18" height="14" rx="2" ry="2" />
+                                <path d="M7 9h10M7 13h6" />
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="tokenError"></span>
+                </div>
+
+                <button type="submit" class="neu-button signup-btn">
+                    <span class="btn-text">Verify Token</span>
+                    <div class="btn-loader">
+                        <div class="neu-spinner"></div>
+                    </div>
+                </button>
+            </form>
+
+            <!-- Products List (shown after token verification) -->
+            <div id="productsSection" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="color: #3d4468; margin: 0;">Products</h3>
+                    <a href="/admin/add-product" class="neu-button" style="width: auto; padding: 10px 20px; margin-bottom: 0; font-size: 14px; text-decoration: none; display: inline-block;">
+                        <span class="btn-text">Add New Product</span>
+                    </a>
+                </div>
+                <div id="productsContainer" class="success-details" style="max-height: 400px; overflow: auto;">
+                    <p id="loadingText" style="color: #9499b7; font-size: 14px;">Loading products...</p>
+                </div>
+            </div>
+
+            <!-- Access Denied Message (shown if not admin) -->
+            <div class="success-message" id="forbiddenMessage" style="display: none;">
+                <div class="success-icon neu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="7" x2="12" y2="13" />
+                        <circle cx="12" cy="17" r="1" />
+                    </svg>
+                </div>
+                <h3>Access Denied</h3>
+                <p class="success-subtitle">Only admin users can manage products.</p>
+                <p style="color: #9499b7; font-size: 14px; margin-top: 12px;">
+                    Redirecting to public products page...
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentToken = null;
+
+        const tokenForm = document.getElementById("tokenForm");
+        const tokenInput = document.getElementById("adminToken");
+        const tokenError = document.getElementById("tokenError");
+        const productsSection = document.getElementById("productsSection");
+        const productsContainer = document.getElementById("productsContainer");
+        const loadingText = document.getElementById("loadingText");
+        const forbiddenMessage = document.getElementById("forbiddenMessage");
+
+        function createProductRow(prod) {
+            const id = prod.ID || prod.id;
+            const title = prod.Title || prod.title || "Untitled";
+            const price = prod.Price ?? prod.price ?? 0;
+            const stock = prod.Stock ?? prod.stock ?? 0;
+
+            const card = document.createElement("div");
+            card.style.padding = "14px 18px";
+            card.style.marginBottom = "10px";
+            card.style.borderRadius = "16px";
+            card.style.background = "#e0e5ec";
+            card.style.boxShadow = "inset 4px 4px 10px #bec3cf, inset -4px -4px 10px #ffffff";
+            
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="font-weight: 600; color: #3d4468;">${title}</span>
+                    <span style="color: #3d4468;">$${Number(price).toFixed(2)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #9499b7; margin-bottom: 6px;">
+                    <span>ID: ${id}</span>
+                    <span>Stock: ${stock}</span>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button class="neu-button update-btn" data-id="${id}" style="width: auto; padding: 8px 16px; margin-bottom: 0; font-size: 12px;">
+                        <span class="btn-text">Update</span>
+                    </button>
+                    <button class="neu-button delete-btn" data-id="${id}" style="width: auto; padding: 8px 16px; margin-bottom: 0; font-size: 12px; background: #ffe0e6;">
+                        <span class="btn-text">Delete</span>
+                    </button>
+                </div>
+            `;
+
+            const updateBtn = card.querySelector('.update-btn');
+            const deleteBtn = card.querySelector('.delete-btn');
+
+            updateBtn.addEventListener("click", () => {
+                // Store token in sessionStorage temporarily for the update page
+                if (currentToken) {
+                    sessionStorage.setItem('adminToken', currentToken);
+                }
+                window.location.href = `/admin/update-product?id=${id}`;
+            });
+
+            deleteBtn.addEventListener("click", async () => {
+                if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+                await deleteProduct(id);
+            });
+
+            return card;
+        }
+
+        async function loadProducts() {
+            if (!currentToken) return;
+            
+            loadingText.style.display = "block";
+            productsContainer.innerHTML = "";
+
+            try {
+                const res = await fetch("/api/admin/products", {
+                    headers: {
+                        "Authorization": "Bearer " + currentToken
+                    }
+                });
+                const data = await res.json();
+
+                loadingText.style.display = "none";
+
+                if (!res.ok) {
+                    productsContainer.innerHTML = `<p style="color: #9499b7; font-size: 14px;">${data.error || "Failed to load products."}</p>`;
+                    return;
+                }
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    productsContainer.innerHTML = "<p style='color: #9499b7; font-size: 14px;'>No products found.</p>";
+                    return;
+                }
+
+                data.forEach((p) => {
+                    productsContainer.appendChild(createProductRow(p));
+                });
+            } catch (e) {
+                console.error(e);
+                loadingText.style.display = "none";
+                productsContainer.innerHTML = "<p style='color: #9499b7; font-size: 14px;'>Network error.</p>";
+            }
+        }
+
+
+        async function deleteProduct(productId) {
+            try {
+                const res = await fetch(`/api/admin/products/${productId}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Authorization": "Bearer " + currentToken
+                    }
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || "Failed to delete product.");
+                    return;
+                }
+
+                await loadProducts();
+            } catch (e) {
+                console.error(e);
+                alert("Network error.");
+            }
+        }
+
+        tokenForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            tokenError.textContent = "";
+            tokenError.classList.remove("show");
+            forbiddenMessage.style.display = "none";
+            productsSection.style.display = "none";
+
+            const btn = tokenForm.querySelector(".neu-button");
+            btn.classList.add("loading");
+
+            const token = tokenInput.value.trim();
+            if (!token) {
+                tokenError.textContent = "Token is required.";
+                tokenError.classList.add("show");
+                btn.classList.remove("loading");
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/admin/verify", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ token: token })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.is_admin) {
+                    currentToken = token;
+                    tokenForm.style.display = "none";
+                    productsSection.style.display = "block";
+                    await loadProducts();
+                } else {
+                    forbiddenMessage.style.display = "block";
+                    setTimeout(() => {
+                        window.location.href = "/shop";
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error(err);
+                tokenError.textContent = "Network error. Try again.";
+                tokenError.classList.add("show");
+            } finally {
+                btn.classList.remove("loading");
+            }
+        });
+    </script>
+</body>
+</html>

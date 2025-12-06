@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop – Products</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="neu-icon">
+                    <div class="icon-inner">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9l1 10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2l1-10" />
+                            <path d="M16 11a4 4 0 0 1-8 0" />
+                            <path d="M5 9h14l-1-4H6z" />
+                        </svg>
+                    </div>
+                </div>
+                <h2>Products</h2>
+                <p>Browse all available products</p>
+            </div>
+
+            <div id="productsContainer" class="success-details" style="max-height:320px;overflow:auto;">
+                <p id="loadingText" style="color:#9499b7;font-size:14px;">Loading products...</p>
+            </div>
+
+            <div class="success-message" id="emptyMessage">
+                <div class="success-icon neu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                </div>
+                <h3>No Products Yet</h3>
+                <p class="success-subtitle">Please check back later.</p>
+            </div>
+
+            <div class="success-message" id="errorMessage">
+                <div class="success-icon neu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="7" x2="12" y2="13" />
+                        <circle cx="12" cy="17" r="1" />
+                    </svg>
+                </div>
+                <h3>Something went wrong</h3>
+                <p class="success-subtitle" id="errorText">Failed to load products.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const productsContainer = document.getElementById("productsContainer");
+        const loadingText = document.getElementById("loadingText");
+        const emptyMessage = document.getElementById("emptyMessage");
+        const errorMessage = document.getElementById("errorMessage");
+        const errorText = document.getElementById("errorText");
+
+        function createProductRow(prod) {
+            const id = prod.ID || prod.id;
+            const title = prod.Title || prod.title || "Untitled";
+            const price = prod.Price ?? prod.price ?? 0;
+            const stock = prod.Stock ?? prod.stock ?? 0;
+
+            const card = document.createElement("div");
+            card.style.padding = "16px 20px";
+            card.style.marginBottom = "12px";
+            card.style.borderRadius = "16px";
+            card.style.background = "#e0e5ec";
+            card.style.boxShadow = "inset 4px 4px 10px #bec3cf, inset -4px -4px 10px #ffffff";
+
+            const topRow = document.createElement("div");
+            topRow.style.display = "flex";
+            topRow.style.justifyContent = "space-between";
+            topRow.style.alignItems = "center";
+            topRow.style.marginBottom = "8px";
+
+            const titleSpan = document.createElement("span");
+            titleSpan.style.fontWeight = "600";
+            titleSpan.style.color = "#3d4468";
+            titleSpan.style.fontSize = "16px";
+            titleSpan.textContent = title;
+
+            const priceSpan = document.createElement("span");
+            priceSpan.style.color = "#3d4468";
+            priceSpan.style.fontWeight = "600";
+            priceSpan.textContent = `$${Number(price).toFixed(2)}`;
+
+            topRow.appendChild(titleSpan);
+            topRow.appendChild(priceSpan);
+
+            const middleRow = document.createElement("div");
+            middleRow.style.display = "flex";
+            middleRow.style.justifyContent = "space-between";
+            middleRow.style.alignItems = "center";
+            middleRow.style.marginBottom = "12px";
+            middleRow.style.fontSize = "12px";
+            middleRow.style.color = "#9499b7";
+
+            const stockSpan = document.createElement("span");
+            stockSpan.textContent = `Stock: ${stock}`;
+
+            middleRow.appendChild(stockSpan);
+
+            const buttonRow = document.createElement("div");
+            buttonRow.style.display = "flex";
+            buttonRow.style.justifyContent = "flex-end";
+
+            const addToCartBtn = document.createElement("button");
+            addToCartBtn.className = "neu-button";
+            addToCartBtn.style.width = "auto";
+            addToCartBtn.style.padding = "10px 20px";
+            addToCartBtn.style.marginBottom = "0";
+            addToCartBtn.style.fontSize = "14px";
+            addToCartBtn.dataset.productId = id;
+            addToCartBtn.innerHTML = '<span class="btn-text">Add to Cart</span>';
+
+            if (stock === 0) {
+                addToCartBtn.disabled = true;
+                addToCartBtn.style.opacity = "0.5";
+                addToCartBtn.style.cursor = "not-allowed";
+            }
+
+            addToCartBtn.addEventListener("click", async () => {
+                await addToCart(id, title);
+            });
+
+            buttonRow.appendChild(addToCartBtn);
+
+            card.appendChild(topRow);
+            card.appendChild(middleRow);
+            card.appendChild(buttonRow);
+
+            return card;
+        }
+
+        async function addToCart(productId, productTitle) {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                alert("Please sign in to add products to cart.");
+                window.location.href = "/sign-in";
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/cart/add", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + token
+                    },
+                    body: JSON.stringify({
+                        product_id: productId,
+                        quantity: 1
+                    })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || "Failed to add product to cart.");
+                    if (res.status === 401) {
+                        localStorage.removeItem("token");
+                        window.location.href = "/sign-in";
+                    }
+                    return;
+                }
+
+                // Show success message with View Cart button
+                const successMsg = document.createElement("div");
+                successMsg.style.position = "fixed";
+                successMsg.style.top = "20px";
+                successMsg.style.right = "20px";
+                successMsg.style.padding = "16px 20px";
+                successMsg.style.borderRadius = "16px";
+                successMsg.style.background = "#e0e5ec";
+                successMsg.style.boxShadow = "8px 8px 16px #bec3cf, -8px -8px 16px #ffffff";
+                successMsg.style.color = "#3d4468";
+                successMsg.style.fontSize = "14px";
+                successMsg.style.zIndex = "1000";
+                successMsg.style.minWidth = "280px";
+                successMsg.style.display = "flex";
+                successMsg.style.flexDirection = "column";
+                successMsg.style.gap = "12px";
+
+                const messageText = document.createElement("div");
+                messageText.style.display = "flex";
+                messageText.style.alignItems = "center";
+                messageText.style.gap = "8px";
+                messageText.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width: 20px; height: 20px; color: #4caf50;">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span style="font-weight: 600;">${productTitle} added to cart!</span>
+                `;
+
+                const buttonContainer = document.createElement("div");
+                buttonContainer.style.display = "flex";
+                buttonContainer.style.justifyContent = "flex-end";
+                buttonContainer.style.gap = "8px";
+
+                const viewCartBtn = document.createElement("button");
+                viewCartBtn.className = "neu-button";
+                viewCartBtn.style.width = "auto";
+                viewCartBtn.style.padding = "8px 16px";
+                viewCartBtn.style.marginBottom = "0";
+                viewCartBtn.style.fontSize = "13px";
+                viewCartBtn.innerHTML = '<span class="btn-text">View Cart</span>';
+                viewCartBtn.addEventListener("click", () => {
+                    // Check if cart page exists, otherwise use cart-page
+                    window.location.href = "/cart-page";
+                });
+
+                const closeBtn = document.createElement("button");
+                closeBtn.style.background = "transparent";
+                closeBtn.style.border = "none";
+                closeBtn.style.color = "#9499b7";
+                closeBtn.style.cursor = "pointer";
+                closeBtn.style.padding = "4px 8px";
+                closeBtn.style.fontSize = "12px";
+                closeBtn.textContent = "Close";
+                closeBtn.addEventListener("click", () => {
+                    successMsg.remove();
+                });
+
+                buttonContainer.appendChild(closeBtn);
+                buttonContainer.appendChild(viewCartBtn);
+
+                successMsg.appendChild(messageText);
+                successMsg.appendChild(buttonContainer);
+                document.body.appendChild(successMsg);
+
+                // Auto-remove after 5 seconds (longer since there's a button)
+                setTimeout(() => {
+                    if (successMsg.parentNode) {
+                        successMsg.remove();
+                    }
+                }, 5000);
+            } catch (err) {
+                console.error(err);
+                alert("Network error. Please try again.");
+            }
+        }
+
+        async function loadProducts() {
+            loadingText.style.display = "block";
+            emptyMessage.classList.remove("show");
+            errorMessage.classList.remove("show");
+
+            try {
+                const res = await fetch("/api/products");
+                const data = await res.json();
+
+                loadingText.style.display = "none";
+                productsContainer.innerHTML = "";
+
+                if (!res.ok) {
+                    errorText.textContent = data.error || "Failed to load products.";
+                    errorMessage.classList.add("show");
+                    return;
+                }
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    emptyMessage.classList.add("show");
+                    return;
+                }
+
+                data.forEach(p => {
+                    productsContainer.appendChild(createProductRow(p));
+                });
+            } catch (err) {
+                console.error(err);
+                loadingText.style.display = "none";
+                errorText.textContent = "Network error. Try again.";
+                errorMessage.classList.add("show");
+            }
+        }
+
+        loadProducts();
+    </script>
+</body>
+</html>
+
+
