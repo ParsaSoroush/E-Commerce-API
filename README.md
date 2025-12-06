@@ -34,7 +34,7 @@ A full-featured e-commerce platform built with Go, featuring user authentication
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/ParsaSoroush/E-Commerce-API.git
 cd E-Commerce-API
 ```
 
